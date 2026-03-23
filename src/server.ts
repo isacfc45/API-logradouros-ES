@@ -20,6 +20,7 @@ server.get('/validar', async (request, reply) => {
 
   const ruaNormalizada = normalizeString(rua);
   
+  // Primeiro tentamos busca exata
   let query = 'SELECT * FROM logradouros WHERE nome_normalizado = ?';
   const params: any[] = [ruaNormalizada];
 
@@ -29,7 +30,20 @@ server.get('/validar', async (request, reply) => {
   }
 
   try {
-    const results = db.prepare(query).all(...params);
+    let results = db.prepare(query).all(...params);
+
+    // Se nao encontrar nada, tenta busca parcial (LIKE) no nome
+    if (results.length === 0) {
+      let partialQuery = 'SELECT * FROM logradouros WHERE nome_normalizado LIKE ?';
+      const partialParams: any[] = [`%${ruaNormalizada}%`];
+
+      if (cidade) {
+        partialQuery += ' AND cidade_nome LIKE ?';
+        partialParams.push(`%${cidade}%`);
+      }
+      
+      results = db.prepare(partialQuery).all(...partialParams);
+    }
 
     return {
       existe: results.length > 0,
