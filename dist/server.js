@@ -1,8 +1,10 @@
 import fastify from 'fastify';
 import Database from 'better-sqlite3';
 import { normalizeString } from './services/normalization';
+import path from 'path';
 const server = fastify({ logger: true });
-const DB_PATH = 'C:/Users/isacf/projetos/validador-ruas-es/logradouros.db';
+// Usando caminho relativo para funcionar em qualquer ambiente (Windows/Docker)
+const DB_PATH = path.join(process.cwd(), 'logradouros.db');
 const db = new Database(DB_PATH, { readonly: true });
 server.get('/validar', async (request, reply) => {
     const { rua, cidade } = request.query;
@@ -17,7 +19,16 @@ server.get('/validar', async (request, reply) => {
         params.push(`%${cidade}%`);
     }
     try {
-        const results = db.prepare(query).all(...params);
+        let results = db.prepare(query).all(...params);
+        if (results.length === 0) {
+            let partialQuery = 'SELECT * FROM logradouros WHERE nome_normalizado LIKE ?';
+            const partialParams = [`%${ruaNormalizada}%`];
+            if (cidade) {
+                partialQuery += ' AND cidade_nome LIKE ?';
+                partialParams.push(`%${cidade}%`);
+            }
+            results = db.prepare(partialQuery).all(...partialParams);
+        }
         return {
             existe: results.length > 0,
             total: results.length,
@@ -36,8 +47,10 @@ server.get('/validar', async (request, reply) => {
 });
 const start = async () => {
     try {
-        await server.listen({ port: 3000, host: '0.0.0.0' });
-        console.log('Servidor rodando em http://localhost:3000');
+        // Porta via variavel de ambiente ou 3001
+        const port = Number(process.env.PORT) || 3001;
+        await server.listen({ port, host: '0.0.0.0' });
+        console.log(`Servidor rodando em http://0.0.0.0:${port}`);
     }
     catch (err) {
         server.log.error(err);
