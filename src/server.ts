@@ -1,9 +1,12 @@
 import fastify from 'fastify';
 import Database from 'better-sqlite3';
 import { normalizeString } from './services/normalization';
+import path from 'path';
 
 const server = fastify({ logger: true });
-const DB_PATH = 'C:/Users/isacf/projetos/validador-ruas-es/logradouros.db';
+
+// Usando caminho relativo para funcionar em qualquer ambiente (Windows/Docker)
+const DB_PATH = path.join(process.cwd(), 'logradouros.db');
 const db = new Database(DB_PATH, { readonly: true });
 
 interface ValidarQuery {
@@ -20,7 +23,6 @@ server.get('/validar', async (request, reply) => {
 
   const ruaNormalizada = normalizeString(rua);
   
-  // Primeiro tentamos busca exata
   let query = 'SELECT * FROM logradouros WHERE nome_normalizado = ?';
   const params: any[] = [ruaNormalizada];
 
@@ -32,7 +34,6 @@ server.get('/validar', async (request, reply) => {
   try {
     let results = db.prepare(query).all(...params);
 
-    // Se nao encontrar nada, tenta busca parcial (LIKE) no nome
     if (results.length === 0) {
       let partialQuery = 'SELECT * FROM logradouros WHERE nome_normalizado LIKE ?';
       const partialParams: any[] = [`%${ruaNormalizada}%`];
@@ -63,8 +64,10 @@ server.get('/validar', async (request, reply) => {
 
 const start = async () => {
   try {
-    await server.listen({ port: 3001, host: '0.0.0.0' });
-    console.log('Servidor rodando em http://localhost:3001');
+    // Porta via variavel de ambiente ou 3001
+    const port = Number(process.env.PORT) || 3001;
+    await server.listen({ port, host: '0.0.0.0' });
+    console.log(`Servidor rodando em http://0.0.0.0:${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);
