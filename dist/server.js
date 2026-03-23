@@ -1,17 +1,22 @@
-import fastify from 'fastify';
-import Database from 'better-sqlite3';
-import { normalizeString } from './services/normalization';
-import path from 'path';
-const server = fastify({ logger: true });
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fastify_1 = __importDefault(require("fastify"));
+const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
+const normalization_1 = require("./services/normalization");
+const path_1 = __importDefault(require("path"));
+const server = (0, fastify_1.default)({ logger: true });
 // Usando caminho relativo para funcionar em qualquer ambiente (Windows/Docker)
-const DB_PATH = path.join(process.cwd(), 'logradouros.db');
-const db = new Database(DB_PATH, { readonly: true });
+const DB_PATH = path_1.default.join(process.cwd(), 'logradouros.db');
+const db = new better_sqlite3_1.default(DB_PATH, { readonly: true });
 server.get('/validar', async (request, reply) => {
     const { rua, cidade } = request.query;
     if (!rua) {
         return reply.status(400).send({ error: 'O parametro "rua" e obrigatorio.' });
     }
-    const ruaNormalizada = normalizeString(rua);
+    const ruaNormalizada = (0, normalization_1.normalizeString)(rua);
     let query = 'SELECT * FROM logradouros WHERE nome_normalizado = ?';
     const params = [ruaNormalizada];
     if (cidade) {
@@ -58,4 +63,3 @@ const start = async () => {
     }
 };
 start();
-//# sourceMappingURL=server.js.map
